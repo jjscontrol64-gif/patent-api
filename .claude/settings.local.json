@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls:*)",
+      "Bash(grep:*)",
+      "Bash(claude:*)",
+      "Bash(echo:*)",
+      "Bash(which:*)",
+      "Bash(find:*)",
+      "Bash(cat:*)",
+      "Bash(file:*)",
+      "Bash(strings:*)",
+      "Bash(./gradlew compileJava)",
+      "Bash(./gradlew test *)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
