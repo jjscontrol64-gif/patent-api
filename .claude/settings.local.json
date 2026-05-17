@@ -11,7 +11,8 @@
       "Bash(file:*)",
       "Bash(strings:*)",
       "Bash(./gradlew compileJava)",
-      "Bash(./gradlew test *)"
+      "Bash(./gradlew test *)",
+      "Bash(./gradlew dependencies *)"
     ],
     "deny": [],
     "ask": []
