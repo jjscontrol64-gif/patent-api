@@ -166,6 +166,42 @@ API Key 미설정 시 mock fallback이 자동 적용됩니다.
 java -jar build/libs/patent-api-0.0.1-SNAPSHOT.jar
 ```
 
+### Docker 배포
+
+Render 같은 Docker 기반 Web Service에서는 `PORT` 환경변수를 제공합니다. 애플리케이션은 `server.port=${PORT:8080}` 설정으로 해당 포트를 사용합니다.
+
+로컬에서 Docker 이미지로 확인하려면 다음 명령을 사용합니다.
+
+```bash
+docker build -t patent-api .
+docker run --rm -p 10000:10000 \
+  -e PORT=10000 \
+  -e SERP_API_KEY=your_serp_api_key \
+  -e DEEPL_API_KEY=your_deepl_api_key \
+  patent-api
+```
+
+Render에서는 Web Service 생성 시 `Language`를 `Docker`로 선택하고, Dockerfile Path는 저장소 루트의 `Dockerfile`을 사용합니다. Health Check Path는 `/actuator/health`를 권장합니다.
+
+### Render 배포 권장 환경변수
+
+작은 인스턴스에서는 JVM heap이 컨테이너 메모리를 모두 차지하지 않도록 `JAVA_TOOL_OPTIONS`를 설정합니다.
+
+```bash
+JAVA_TOOL_OPTIONS=-XX:+UseSerialGC -XX:InitialRAMPercentage=15 -XX:MaxRAMPercentage=60 -XX:MaxMetaspaceSize=160m -XX:+ExitOnOutOfMemoryError
+APP_LOG_LEVEL=INFO
+SERVER_TOMCAT_THREADS_MAX=50
+SERVER_TOMCAT_THREADS_MIN_SPARE=5
+SERVER_TOMCAT_ACCEPT_COUNT=50
+```
+
+메모리가 1GB 이상이고 동시 요청이 늘어나면 기본 G1 GC를 사용하는 아래 설정이 더 적합할 수 있습니다.
+
+```bash
+JAVA_TOOL_OPTIONS=-XX:+UseG1GC -XX:InitialRAMPercentage=20 -XX:MaxRAMPercentage=65 -XX:MaxMetaspaceSize=192m -XX:+ExitOnOutOfMemoryError
+SERVER_TOMCAT_THREADS_MAX=100
+```
+
 ### Swagger UI
 
 ```
