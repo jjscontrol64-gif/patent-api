@@ -5,6 +5,7 @@ import com.jjs.patentapi.dto.TranslationResponse;
 import com.jjs.patentapi.exception.ExternalApiException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
@@ -41,12 +42,17 @@ public class DeepLClient {
             JsonNode root = restClient.post()
                     .uri("/v2/translate")
                     .header("Authorization", "DeepL-Auth-Key " + apiKey)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .accept(MediaType.APPLICATION_JSON)
                     .body(requestBody(request))
                     .retrieve()
                     .body(JsonNode.class);
 
             return mapTranslationResponse(root);
         } catch (RestClientResponseException ex) {
+            log.warn("DeepL translation failed: status={}, body={}",
+                    ex.getStatusCode().value(),
+                    abbreviate(ex.getResponseBodyAsString(), 500));
             throw new ExternalApiException("DeepL translation request failed: HTTP " + ex.getStatusCode().value(), ex);
         } catch (RestClientException ex) {
             throw new ExternalApiException("DeepL translation request failed.", ex);
@@ -62,13 +68,27 @@ public class DeepLClient {
     }
 
     private Map<String, Object> requestBody(TranslationRequest request) {
+        String sourceLang = normalizeLanguageCode(request.getSourceLang());
+        String targetLang = normalizeLanguageCode(request.getTargetLang());
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("text", List.of(request.getSourceText()));
-        if (!"AUTO".equalsIgnoreCase(request.getSourceLang())) {
-            body.put("source_lang", request.getSourceLang());
+        if (!"AUTO".equalsIgnoreCase(sourceLang)) {
+            body.put("source_lang", sourceLang);
         }
-        body.put("target_lang", request.getTargetLang());
+        body.put("target_lang", targetLang);
         return body;
+    }
+
+    private String normalizeLanguageCode(String languageCode) {
+        if (languageCode == null) {
+            return "";
+        }
+        String normalized = languageCode.trim().toUpperCase();
+        return switch (normalized) {
+            case "JP" -> "JA";
+            case "KR" -> "KO";
+            default -> normalized;
+        };
     }
 
     private TranslationResponse mapTranslationResponse(JsonNode root) {
@@ -92,5 +112,12 @@ public class DeepLClient {
         return TranslationResponse.builder()
                 .translatedText("[번역 미리보기] " + request.getSourceText())
                 .build();
+    }
+
+    private String abbreviate(String value, int maxLength) {
+        if (value == null || value.length() <= maxLength) {
+            return value;
+        }
+        return value.substring(0, maxLength) + "...";
     }
 }

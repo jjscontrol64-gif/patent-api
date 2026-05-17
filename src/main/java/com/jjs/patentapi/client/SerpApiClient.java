@@ -49,6 +49,7 @@ public class SerpApiClient {
                         var builder = uriBuilder.path("/search.json")
                                 .queryParam("engine", "google_patents")
                                 .queryParam("q", searchQuery)
+                                .queryParam("country", "JP")
                                 .queryParam("page", request.getPage())
                                 .queryParam("num", serpApiPageSize(request.getSize()))
                                 .queryParam("api_key", apiKey);
@@ -117,6 +118,9 @@ public class SerpApiClient {
                     break;
                 }
                 String publicationNumber = text(result, "publication_number");
+                if (!isJapanesePublication(publicationNumber)) {
+                    continue;
+                }
                 String patentId = text(result, "patent_id");
                 items.add(PatentItem.builder()
                         .id(hasText(publicationNumber) ? publicationNumber : patentId)
@@ -208,6 +212,10 @@ public class SerpApiClient {
 
     private boolean hasText(String value) {
         return value != null && !value.isBlank();
+    }
+
+    private boolean isJapanesePublication(String publicationNumber) {
+        return hasText(publicationNumber) && publicationNumber.toUpperCase().startsWith("JP");
     }
 
     private PatentSearchResponse mockSearchResponse(PatentSearchRequest request) {

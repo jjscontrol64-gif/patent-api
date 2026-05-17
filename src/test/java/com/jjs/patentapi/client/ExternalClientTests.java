@@ -29,6 +29,7 @@ class ExternalClientTests {
             Map<String, String> query = queryParams(exchange);
             assertThat(query).containsEntry("engine", "google_patents");
             assertThat(query).containsEntry("q", "battery");
+            assertThat(query).containsEntry("country", "JP");
             assertThat(query).containsEntry("page", "2");
             assertThat(query).containsEntry("num", "10");
             assertThat(query).containsEntry("after", "filing:20200101");
@@ -44,7 +45,7 @@ class ExternalClientTests {
                           "title": "Foaming soluble coffee powder containing pressurized gas",
                           "assignee": "Kraft Foods Global Brands Llc",
                           "filing_date": "2010-04-27",
-                          "publication_number": "US8110241B2"
+                          "publication_number": "JP8110241B2"
                         },
                         {
                           "patent_id": "patent/RU2766609C2/en",
@@ -69,7 +70,7 @@ class ExternalClientTests {
 
             assertThat(response.getTotalCount()).isEqualTo(42);
             assertThat(response.getItems()).hasSize(1);
-            assertThat(response.getItems().get(0).getId()).isEqualTo("US8110241B2");
+            assertThat(response.getItems().get(0).getId()).isEqualTo("JP8110241B2");
             assertThat(response.getItems().get(0).getApplicant()).isEqualTo("Kraft Foods Global Brands Llc");
         }
     }
@@ -109,6 +110,8 @@ class ExternalClientTests {
         try (TestHttpServer server = TestHttpServer.start(exchange -> {
             assertThat(exchange.getRequestMethod()).isEqualTo("POST");
             assertThat(exchange.getRequestHeaders().getFirst("Authorization")).isEqualTo("DeepL-Auth-Key deepl-key");
+            assertThat(exchange.getRequestHeaders().getFirst("Content-Type")).contains("application/json");
+            assertThat(exchange.getRequestHeaders().getFirst("Accept")).contains("application/json");
             String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
             assertThat(body).contains("\"text\":[\"Hello\"]");
             assertThat(body).contains("\"source_lang\":\"EN\"");
@@ -138,6 +141,33 @@ class ExternalClientTests {
     }
 
     @Test
+    void deepLTranslateNormalizesCommonLanguageAliases() throws Exception {
+        try (TestHttpServer server = TestHttpServer.start(exchange -> {
+            String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+            assertThat(body).contains("\"source_lang\":\"JA\"");
+            assertThat(body).contains("\"target_lang\":\"KO\"");
+
+            respondJson(exchange, """
+                    {
+                      "translations": [
+                        { "text": "특허" }
+                      ]
+                    }
+                    """);
+        })) {
+            DeepLClient client = new DeepLClient(RestClient.builder(), "deepl-key", server.baseUrl());
+            TranslationRequest request = new TranslationRequest();
+            request.setSourceText("特許");
+            request.setSourceLang("JP");
+            request.setTargetLang("KR");
+
+            TranslationResponse response = client.translate(request);
+
+            assertThat(response.getTranslatedText()).isEqualTo("특허");
+        }
+    }
+
+    @Test
     void searchServiceTranslatesKoreanQueryToJapaneseBeforeSerpApiSearch() throws Exception {
         try (
                 TestHttpServer deepLServer = TestHttpServer.start(exchange -> {
@@ -158,6 +188,7 @@ class ExternalClientTests {
                     Map<String, String> query = queryParams(exchange);
                     assertThat(query).containsEntry("engine", "google_patents");
                     assertThat(query).containsEntry("q", "バッテリー");
+                    assertThat(query).containsEntry("country", "JP");
 
                     respondJson(exchange, """
                             {
